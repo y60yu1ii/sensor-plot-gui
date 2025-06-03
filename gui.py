@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import numpy as np
 import pytz
-import tkinter as tk
+import customtkinter as ctk
 from tkinter import ttk, filedialog, messagebox
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from utils import (
@@ -11,7 +11,7 @@ from utils import (
 )
 import datetime
 
-class SensorPicker(tk.Tk):
+class SensorPicker(ctk.CTk):
     def __init__(self, df, time_col):
         super().__init__()
         self.title("感測器/狀態軸 勾選＋滑鼠X軸平移、Y軸縮放/移動＋下載")
@@ -20,56 +20,55 @@ class SensorPicker(tk.Tk):
 
         self.time_min = pd.Timestamp(df[time_col].min())
         self.time_max = pd.Timestamp(df[time_col].max())
-        self.start_time = tk.StringVar(value=str(self.time_min)[:19])
-        self.end_time = tk.StringVar(value=str(self.time_max)[:19])
+        self.start_time = ctk.StringVar(value=str(self.time_min)[:19])
+        self.end_time = ctk.StringVar(value=str(self.time_max)[:19])
 
-        main_frame = tk.Frame(self)
-        main_frame.pack(fill=tk.BOTH, expand=1)
+        main_frame = ctk.CTkFrame(self)
+        main_frame.pack(fill=ctk.BOTH, expand=1)
 
         # 側欄
-        side_frame = tk.Frame(main_frame)
-        side_frame.pack(side=tk.LEFT, fill=tk.Y, padx=8, pady=6)
+        side_frame = ctk.CTkFrame(main_frame)
+        side_frame.pack(side=ctk.LEFT, fill=ctk.Y, padx=8, pady=6)
 
         # 狀態開關單選
-        selected_status_frame = tk.Frame(side_frame)
-        selected_status_frame.pack(fill=tk.X)
-        tk.Label(selected_status_frame, text="已選狀態開關", fg='purple').pack(anchor='w')
-        self.selected_status_var = tk.StringVar()
-        self.selected_status_label = tk.Label(selected_status_frame, text="", fg="red")
+        selected_status_frame = ctk.CTkFrame(side_frame)
+        selected_status_frame.pack(fill=ctk.X)
+        ctk.CTkLabel(selected_status_frame, text="已選狀態開關", text_color='purple').pack(anchor='w')
+        self.selected_status_var = ctk.StringVar()
+        self.selected_status_label = ctk.CTkLabel(selected_status_frame, text="", text_color="red")
         self.selected_status_label.pack(anchor='w')
-        self.clear_status_btn = tk.Button(selected_status_frame, text="移除", command=self.clear_status)
+        self.clear_status_btn = ctk.CTkButton(selected_status_frame, text="移除", command=self.clear_status, fg_color="#f99")
         self.clear_status_btn.pack(anchor='w')
 
         # 時間區段
-        time_frame = tk.Frame(side_frame)
-        time_frame.pack(fill=tk.X, pady=(8,0))
-        tk.Label(time_frame, text="起始時間：").pack(side=tk.LEFT)
-        self.start_entry = tk.Entry(time_frame, textvariable=self.start_time, width=20)
-        self.start_entry.pack(side=tk.LEFT)
-        tk.Button(time_frame, text="📅", command=self.pick_start_time).pack(side=tk.LEFT, padx=(0,8))
-        tk.Label(time_frame, text="結束時間：").pack(side=tk.LEFT)
-        self.end_entry = tk.Entry(time_frame, textvariable=self.end_time, width=20)
-        self.end_entry.pack(side=tk.LEFT)
-        tk.Button(time_frame, text="📅", command=self.pick_end_time).pack(side=tk.LEFT)
+        time_frame = ctk.CTkFrame(side_frame)
+        time_frame.pack(fill=ctk.X, pady=(8,0))
+        ctk.CTkLabel(time_frame, text="起始時間：").pack(side=ctk.LEFT)
+        self.start_entry = ctk.CTkEntry(time_frame, textvariable=self.start_time, width=140)
+        self.start_entry.pack(side=ctk.LEFT)
+        ctk.CTkButton(time_frame, text="📅", command=self.pick_start_time, width=36).pack(side=ctk.LEFT, padx=(0,8))
+        ctk.CTkLabel(time_frame, text="結束時間：").pack(side=ctk.LEFT)
+        self.end_entry = ctk.CTkEntry(time_frame, textvariable=self.end_time, width=140)
+        self.end_entry.pack(side=ctk.LEFT)
+        ctk.CTkButton(time_frame, text="📅", command=self.pick_end_time, width=36).pack(side=ctk.LEFT)
 
-        # 下載按鈕（分開）
-        csv_btn = tk.Button(side_frame, text="下載資料（CSV）", command=self.download_csv)
-        csv_btn.pack(pady=(8,2), fill=tk.X)
-        png_btn = tk.Button(side_frame, text="下載圖檔（PNG）", command=self.download_png)
-        png_btn.pack(pady=(0,8), fill=tk.X)
+        # 下載按鈕
+        ctk.CTkButton(side_frame, text="下載資料（CSV）", command=self.download_csv).pack(pady=(8,2), fill=ctk.X)
+        ctk.CTkButton(side_frame, text="下載圖檔（PNG）", command=self.download_png).pack(pady=(0,8), fill=ctk.X)
 
         # 搜尋、主副軸、多選
-        panel_label = tk.Label(side_frame, text="搜尋/勾選感測器、開關：", fg='blue')
-        panel_label.pack(anchor='w', pady=(8,0))
-        self.search_var = tk.StringVar()
+        ctk.CTkLabel(side_frame, text="搜尋/勾選感測器、開關：", text_color='blue').pack(anchor='w', pady=(8,0))
+        self.search_var = ctk.StringVar()
         self.search_var.trace_add('write', self.refresh_panel)
-        search_entry = tk.Entry(side_frame, textvariable=self.search_var)
-        search_entry.pack(fill=tk.X, padx=0, pady=2)
-        scroll_outer = tk.Frame(side_frame)
-        scroll_outer.pack(fill=tk.BOTH, expand=1, padx=0, pady=4)
+        search_entry = ctk.CTkEntry(side_frame, textvariable=self.search_var)
+        search_entry.pack(fill=ctk.X, padx=0, pady=2)
+        scroll_outer = ctk.CTkFrame(side_frame)
+        scroll_outer.pack(fill=ctk.BOTH, expand=1, padx=0, pady=4)
+        # 這裡因為 ctk 沒有自己的 Canvas, 仍用 tkinter
+        import tkinter as tk
         self.canvas = tk.Canvas(scroll_outer, width=330, height=540)
         scrollbar = ttk.Scrollbar(scroll_outer, orient="vertical", command=self.canvas.yview)
-        self.scrollable_frame = tk.Frame(self.canvas)
+        self.scrollable_frame = ctk.CTkFrame(self.canvas)
         self.scrollable_frame.bind(
             "<Configure>",
             lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all"))
@@ -84,7 +83,7 @@ class SensorPicker(tk.Tk):
         self.sensor_all = get_sensor_cols(df)
         self.vars_main = {}
         self.vars_aux = {}
-        self.status_radio_var = tk.StringVar()
+        self.status_radio_var = ctk.StringVar()
         self.refresh_panel()
 
         self.start_time.trace_add("write", lambda *_: self.update_plot())
@@ -95,7 +94,7 @@ class SensorPicker(tk.Tk):
         self.canvas_plot = FigureCanvasTkAgg(self.fig, master=main_frame)
         self.toolbar = NavigationToolbar2Tk(self.canvas_plot, main_frame)
         self.toolbar.update()
-        self.canvas_plot.get_tk_widget().pack(side=tk.RIGHT, fill=tk.BOTH, expand=1)
+        self.canvas_plot.get_tk_widget().pack(side=ctk.RIGHT, fill=ctk.BOTH, expand=1)
 
         # --- 滑鼠平移/縮放支援 ---
         self._dragging = False
@@ -116,24 +115,24 @@ class SensorPicker(tk.Tk):
         search_key = self.search_var.get().strip().lower()
         for widget in self.scrollable_frame.winfo_children():
             widget.destroy()
-        tk.Label(self.scrollable_frame, text="狀態開關 (單選)", fg='purple').pack(anchor='w')
+        ctk.CTkLabel(self.scrollable_frame, text="狀態開關 (單選)", text_color='purple').pack(anchor='w')
         for col in self.switch_all:
             if not search_key or search_key in col.lower():
-                rb = tk.Radiobutton(self.scrollable_frame, text=col, variable=self.status_radio_var, value=col, command=self.set_status)
+                rb = ctk.CTkRadioButton(self.scrollable_frame, text=col, variable=self.status_radio_var, value=col, command=self.set_status)
                 rb.pack(anchor='w')
-        tk.Label(self.scrollable_frame, text="主軸感測器", fg='blue').pack(anchor='w', pady=(10,0))
+        ctk.CTkLabel(self.scrollable_frame, text="主軸感測器", text_color='blue').pack(anchor='w', pady=(10,0))
         for sensor in self.sensor_all:
             if not search_key or search_key in sensor.lower():
                 if sensor not in self.vars_main:
-                    self.vars_main[sensor] = tk.BooleanVar()
-                chk = tk.Checkbutton(self.scrollable_frame, text=sensor, variable=self.vars_main[sensor], command=self.update_plot)
+                    self.vars_main[sensor] = ctk.BooleanVar()
+                chk = ctk.CTkCheckBox(self.scrollable_frame, text=sensor, variable=self.vars_main[sensor], command=self.update_plot)
                 chk.pack(anchor='w')
-        tk.Label(self.scrollable_frame, text="副軸感測器", fg='green').pack(anchor='w', pady=(10,0))
+        ctk.CTkLabel(self.scrollable_frame, text="副軸感測器", text_color='green').pack(anchor='w', pady=(10,0))
         for sensor in self.sensor_all:
             if not search_key or search_key in sensor.lower():
                 if sensor not in self.vars_aux:
-                    self.vars_aux[sensor] = tk.BooleanVar()
-                chk = tk.Checkbutton(self.scrollable_frame, text=sensor, variable=self.vars_aux[sensor], command=self.update_plot)
+                    self.vars_aux[sensor] = ctk.BooleanVar()
+                chk = ctk.CTkCheckBox(self.scrollable_frame, text=sensor, variable=self.vars_aux[sensor], command=self.update_plot)
                 chk.pack(anchor='w')
         self.update_status_label()
 
@@ -152,11 +151,11 @@ class SensorPicker(tk.Tk):
     def update_status_label(self):
         val = self.selected_status_var.get()
         if val:
-            self.selected_status_label.config(text=f"{val}")
-            self.clear_status_btn.config(state=tk.NORMAL)
+            self.selected_status_label.configure(text=f"{val}")
+            self.clear_status_btn.configure(state=ctk.NORMAL)
         else:
-            self.selected_status_label.config(text="")
-            self.clear_status_btn.config(state=tk.DISABLED)
+            self.selected_status_label.configure(text="")
+            self.clear_status_btn.configure(state=ctk.DISABLED)
 
     def pick_start_time(self):
         try:
@@ -247,8 +246,8 @@ class SensorPicker(tk.Tk):
 
         mask = (self.df_all[self.time_col] >= start) & (self.df_all[self.time_col] <= end)
         df = self.df_all.loc[mask]
-        main_sensors = [s for s in self.sensor_all if self.vars_main.get(s, tk.BooleanVar()).get()]
-        aux_sensors = [s for s in self.sensor_all if self.vars_aux.get(s, tk.BooleanVar()).get()]
+        main_sensors = [s for s in self.sensor_all if self.vars_main.get(s, ctk.BooleanVar()).get()]
+        aux_sensors = [s for s in self.sensor_all if self.vars_aux.get(s, ctk.BooleanVar()).get()]
         sensors = sorted(set(main_sensors + aux_sensors))
         switch_col = self.selected_status_var.get()
         cols = [self.time_col] + sensors
@@ -317,8 +316,8 @@ class SensorPicker(tk.Tk):
 
         mask = (self.df_all[self.time_col] >= start) & (self.df_all[self.time_col] <= end)
         df = self.df_all.loc[mask]
-        main_sensors = [s for s in self.sensor_all if self.vars_main.get(s, tk.BooleanVar()).get()]
-        aux_sensors = [s for s in self.sensor_all if self.vars_aux.get(s, tk.BooleanVar()).get()]
+        main_sensors = [s for s in self.sensor_all if self.vars_main.get(s, ctk.BooleanVar()).get()]
+        aux_sensors = [s for s in self.sensor_all if self.vars_aux.get(s, ctk.BooleanVar()).get()]
 
         handles = []
         switch_col = self.selected_status_var.get()

@@ -2,8 +2,8 @@ from font_config import set_chinese_font
 from gui import SensorPicker
 from utils import pick_file
 import pandas as pd
-import tkinter as tk
-from tkinter import messagebox
+import customtkinter as ctk  # <--- 改這行
+from tkinter import messagebox  # messagebox 也可以繼續用
 import sys
 
 def main():
@@ -22,15 +22,16 @@ def main():
         time_col = 'Datetime'
     else:
         raise Exception("CSV 沒有 Timestamp 或 Date/Time 欄")
-    app = SensorPicker(df, time_col)
+    app = SensorPicker(df, time_col)  # SensorPicker 內部要改成 ctk 版本
     app.mainloop()
 
 if __name__ == "__main__":
     try:
+        # CustomTkinter 預設自動暗黑/亮色，無需自己設 theme
         main()
     except Exception as e:
-        # 彈出錯誤視窗，不會閃退
-        root = tk.Tk()
+        # CustomTkinter 也能和 tkinter 的 messagebox 共用
+        root = ctk.CTk()  # 這裡用 ctk.CTk()
         root.withdraw()
         messagebox.showerror("執行時錯誤", str(e))
         sys.exit(1)
