@@ -20,11 +20,11 @@ jobs:
 
       - name: Build exe with PyInstaller
         run: |
-          pyinstaller --noconfirm --onefile \
-            --add-data "gui.py;." \
-            --add-data "font_config.py;." \
-            --add-data "utils.py;." \
-            --add-data "widgets.py;." \
+          pyinstaller --noconfirm --onefile ^
+            --add-data "gui.py;." ^
+            --add-data "font_config.py;." ^
+            --add-data "utils.py;." ^
+            --add-data "widgets.py;." ^
             main.py
 
       - name: Upload artifact
