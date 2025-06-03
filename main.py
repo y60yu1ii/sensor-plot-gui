@@ -2,6 +2,9 @@ from font_config import set_chinese_font
 from gui import SensorPicker
 from utils import pick_file
 import pandas as pd
+import tkinter as tk
+from tkinter import messagebox
+import sys
 
 def main():
     set_chinese_font()
@@ -23,4 +26,11 @@ def main():
     app.mainloop()
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        # 彈出錯誤視窗，不會閃退
+        root = tk.Tk()
+        root.withdraw()
+        messagebox.showerror("執行時錯誤", str(e))
+        sys.exit(1)
