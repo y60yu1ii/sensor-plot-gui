@@ -1,4 +1,4 @@
-<![CDATA[import pandas as pd
+import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import pytz
@@ -22,7 +22,7 @@ class SensorPicker(ctk.CTk):
     def __init__(self):
         super().__init__()
         ctk.set_appearance_mode("light")  # 設定為淺色模式
-        self.title("感測器/狀態/AV 多選＋背景色＋legend＋Emoji顯示/勾選")
+        self.title("感測器Plot")
         
         self.df_all = None
         self.time_col = None
@@ -35,47 +35,47 @@ class SensorPicker(ctk.CTk):
         main_frame.pack(fill=ctk.BOTH, expand=1)
 
         # 側邊選單
-        side_frame = ctk.CTkFrame(main_frame)
-        side_frame.pack(side=ctk.LEFT, fill=ctk.Y, padx=8, pady=6)
+        side_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        side_frame.pack(side=ctk.LEFT, fill=ctk.Y, padx=10, pady=6)
 
         # 新增 "開啟新 CSV" 按鈕
-        ctk.CTkButton(side_frame, text="開啟新 CSV 檔案", command=self.open_new_csv).pack(pady=(8,2), fill=ctk.X)
+        ctk.CTkButton(side_frame, text="開啟新 CSV 檔案", command=self.open_new_csv, corner_radius=8).pack(pady=(0,5), ipady=4, fill=ctk.X)
 
         # 時間區段
-        time_frame = ctk.CTkFrame(side_frame)
-        time_frame.pack(fill=ctk.X, pady=(8,0))
+        time_frame = ctk.CTkFrame(side_frame, fg_color="transparent")
+        time_frame.pack(fill=ctk.X, pady=(10,0))
 
-        start_time_row_frame = ctk.CTkFrame(time_frame)
-        start_time_row_frame.pack(fill=ctk.X, pady=(0, 2))
-        ctk.CTkLabel(start_time_row_frame, text="起始時間：").pack(side=ctk.LEFT)
-        self.start_entry = ctk.CTkEntry(start_time_row_frame, textvariable=self.start_time, state='disabled') # 初始禁用
-        self.start_entry.pack(side=ctk.LEFT, expand=True, fill=ctk.X, padx=(0,2))
-        self.pick_start_button = ctk.CTkButton(start_time_row_frame, text="📅", command=self.pick_start_time, width=36, state='disabled') # 初始禁用
+        start_time_row_frame = ctk.CTkFrame(time_frame, fg_color="transparent")
+        start_time_row_frame.pack(fill=ctk.X, pady=(0, 5))
+        ctk.CTkLabel(start_time_row_frame, text="起始時間：").pack(side=ctk.LEFT, padx=(0,5))
+        self.start_entry = ctk.CTkEntry(start_time_row_frame, textvariable=self.start_time, state='disabled', corner_radius=8) # 初始禁用
+        self.start_entry.pack(side=ctk.LEFT, expand=True, fill=ctk.X, padx=(0,5), ipady=2)
+        self.pick_start_button = ctk.CTkButton(start_time_row_frame, text="📅", command=self.pick_start_time, width=40, height=28, state='disabled', corner_radius=8) # 初始禁用
         self.pick_start_button.pack(side=ctk.LEFT)
 
-        end_time_row_frame = ctk.CTkFrame(time_frame)
+        end_time_row_frame = ctk.CTkFrame(time_frame, fg_color="transparent")
         end_time_row_frame.pack(fill=ctk.X)
-        ctk.CTkLabel(end_time_row_frame, text="結束時間：").pack(side=ctk.LEFT)
-        self.end_entry = ctk.CTkEntry(end_time_row_frame, textvariable=self.end_time, state='disabled') # 初始禁用
-        self.end_entry.pack(side=ctk.LEFT, expand=True, fill=ctk.X, padx=(0,2))
-        self.pick_end_button = ctk.CTkButton(end_time_row_frame, text="📅", command=self.pick_end_time, width=36, state='disabled') # 初始禁用
+        ctk.CTkLabel(end_time_row_frame, text="結束時間：").pack(side=ctk.LEFT, padx=(0,5))
+        self.end_entry = ctk.CTkEntry(end_time_row_frame, textvariable=self.end_time, state='disabled', corner_radius=8) # 初始禁用
+        self.end_entry.pack(side=ctk.LEFT, expand=True, fill=ctk.X, padx=(0,5), ipady=2)
+        self.pick_end_button = ctk.CTkButton(end_time_row_frame, text="📅", command=self.pick_end_time, width=40, height=28, state='disabled', corner_radius=8) # 初始禁用
         self.pick_end_button.pack(side=ctk.LEFT)
 
         # 下載按鈕
-        self.download_csv_button = ctk.CTkButton(side_frame, text="下載資料（CSV）", command=self.download_csv, state='disabled') # 初始禁用
-        self.download_csv_button.pack(pady=(8,2), fill=ctk.X)
-        self.download_png_button = ctk.CTkButton(side_frame, text="下載圖檔（PNG）", command=self.download_png, state='disabled') # 初始禁用
-        self.download_png_button.pack(pady=(0,8), fill=ctk.X)
+        self.download_csv_button = ctk.CTkButton(side_frame, text="下載資料 (CSV)", command=self.download_csv, state='disabled', corner_radius=8) # 初始禁用
+        self.download_csv_button.pack(pady=(10,5), ipady=4, fill=ctk.X)
+        self.download_png_button = ctk.CTkButton(side_frame, text="下載圖檔 (PNG)", command=self.download_png, state='disabled', corner_radius=8) # 初始禁用
+        self.download_png_button.pack(pady=(0,10), ipady=4, fill=ctk.X)
 
         # 搜尋框
-        ctk.CTkLabel(side_frame, text="搜尋/勾選/顯示：").pack(anchor='w', pady=(8,0))
+        ctk.CTkLabel(side_frame, text="搜尋/勾選/顯示：").pack(anchor='w', pady=(10,2))
         self.search_var = ctk.StringVar()
         self.search_var.trace_add('write', self.refresh_panel_if_data_loaded)
-        self.search_entry = ctk.CTkEntry(side_frame, textvariable=self.search_var, state='disabled') # 初始禁用
-        self.search_entry.pack(fill=ctk.X, padx=0, pady=2)
+        self.search_entry = ctk.CTkEntry(side_frame, textvariable=self.search_var, state='disabled', corner_radius=8) # 初始禁用
+        self.search_entry.pack(fill=ctk.X, padx=0, pady=(0,5), ipady=2)
         
-        scroll_outer = ctk.CTkFrame(side_frame)
-        scroll_outer.pack(fill=ctk.BOTH, expand=1, padx=0, pady=4)
+        scroll_outer = ctk.CTkFrame(side_frame, fg_color="transparent")
+        scroll_outer.pack(fill=ctk.BOTH, expand=1, padx=0, pady=0)
         import tkinter as tk # 保持這個 import
         self.canvas = tk.Canvas(scroll_outer, width=350, height=540, background="#fafbfc", highlightthickness=0)
         scrollbar = ttk.Scrollbar(scroll_outer, orient="vertical", command=self.canvas.yview)
@@ -240,32 +240,32 @@ class SensorPicker(ctk.CTk):
 
         selected_cols = [col for col in self.all_cols if self.vars_all.get(col, ctk.BooleanVar()).get()]
         if selected_cols:
-            ctk.CTkLabel(self.scrollable_frame, text="已勾選 (直接取消/隱藏)").pack(anchor='w', pady=(4,2))
+            ctk.CTkLabel(self.scrollable_frame, text="已勾選 (點擊取消/隱藏)").pack(anchor='w', pady=(5,3), padx=5)
             for col in selected_cols:
-                frm = ctk.CTkFrame(self.scrollable_frame)
-                frm.pack(anchor='w', fill=ctk.X, padx=0)
+                frm = ctk.CTkFrame(self.scrollable_frame, fg_color="transparent")
+                frm.pack(anchor='w', fill=ctk.X, padx=5, pady=1)
                 checked = "✅"
-                btn_check = ctk.CTkButton(frm, text=checked, width=28, command=lambda c=col: self.toggle_checked(c))
-                btn_check.pack(side=ctk.LEFT, padx=(0,2))
+                btn_check = ctk.CTkButton(frm, text=checked, width=30, height=30, command=lambda c=col: self.toggle_checked(c), corner_radius=6, fg_color="transparent", hover_color="#DCE4EE", text_color_disabled="grey")
+                btn_check.pack(side=ctk.LEFT, padx=(0,3))
                 eye = "👁️" if self.is_visible.get(col, True) else "🙈"
-                btn_eye = ctk.CTkButton(frm, text=eye, width=28, command=lambda c=col: self.toggle_visible(c))
-                btn_eye.pack(side=ctk.LEFT, padx=(0,2))
-                ctk.CTkLabel(frm, text=col).pack(side=ctk.LEFT)
+                btn_eye = ctk.CTkButton(frm, text=eye, width=30, height=30, command=lambda c=col: self.toggle_visible(c), corner_radius=6, fg_color="transparent", hover_color="#DCE4EE", text_color_disabled="grey")
+                btn_eye.pack(side=ctk.LEFT, padx=(0,5))
+                ctk.CTkLabel(frm, text=col).pack(side=ctk.LEFT, pady=2)
 
-        ctk.CTkLabel(self.scrollable_frame, text="全部感測/AV/開關").pack(anchor='w', pady=(8,0))
+        ctk.CTkLabel(self.scrollable_frame, text="全部感測器 (點擊勾選/隱藏)").pack(anchor='w', pady=(10,3), padx=5)
         for col in self.all_cols:
             if not search_key or search_key in col.lower():
                 if col not in self.vars_all:
                     self.vars_all[col] = ctk.BooleanVar()
-                frm = ctk.CTkFrame(self.scrollable_frame)
-                frm.pack(anchor='w', fill=ctk.X, padx=0)
-                checked = "✅" if self.vars_all[col].get() else "⬜️"
-                btn_check = ctk.CTkButton(frm, text=checked, width=28, command=lambda c=col: self.toggle_checked(c))
-                btn_check.pack(side=ctk.LEFT, padx=(0,2))
+                frm = ctk.CTkFrame(self.scrollable_frame, fg_color="transparent")
+                frm.pack(anchor='w', fill=ctk.X, padx=5, pady=1)
+                checked = "✅" if self.vars_all[col].get() else "🔲"
+                btn_check = ctk.CTkButton(frm, text=checked, width=30, height=30, command=lambda c=col: self.toggle_checked(c), corner_radius=6, fg_color="transparent", hover_color="#DCE4EE", text_color_disabled="grey")
+                btn_check.pack(side=ctk.LEFT, padx=(0,3))
                 eye = "👁️" if self.is_visible.get(col, True) else "🙈"
-                btn_eye = ctk.CTkButton(frm, text=eye, width=28, command=lambda c=col: self.toggle_visible(c))
-                btn_eye.pack(side=ctk.LEFT, padx=(0,2))
-                ctk.CTkLabel(frm, text=col).pack(side=ctk.LEFT)
+                btn_eye = ctk.CTkButton(frm, text=eye, width=30, height=30, command=lambda c=col: self.toggle_visible(c), corner_radius=6, fg_color="transparent", hover_color="#DCE4EE", text_color_disabled="grey")
+                btn_eye.pack(side=ctk.LEFT, padx=(0,5))
+                ctk.CTkLabel(frm, text=col).pack(side=ctk.LEFT, pady=2)
 
     def toggle_visible(self, col):
         if self.df_all is None: return
@@ -601,7 +601,7 @@ class SensorPicker(ctk.CTk):
              self.ax.legend(final_handles, final_labels, loc='upper left', fontsize=9, ncol=1)
 
         if not (switch_cols or valid_sensor_cols or valid_av_cols):
-            self.ax.set_title('請至少勾選一個感測器/狀態/AV')
+            self.ax.set_title('請至少勾選一個感測器')
         elif df.empty :
              self.ax.set_title('此時間範圍內無資料')
         # else:
@@ -614,4 +614,3 @@ class SensorPicker(ctk.CTk):
         self.ax.autoscale_view(tight=False) # tight=False 避免太緊湊
         self.fig.tight_layout()
         self.canvas_plot.draw()
-]]>

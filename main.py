@@ -1,4 +1,4 @@
-<![CDATA[from font_config import set_chinese_font
+from font_config import set_chinese_font
 from gui import SensorPicker
 from utils import pick_file # 保留 pick_file，因為 gui.py 會用到
 import pandas as pd
@@ -36,4 +36,3 @@ if __name__ == "__main__":
         root.withdraw()
         messagebox.showerror("執行時錯誤", str(e))
         sys.exit(1)
-]]>
