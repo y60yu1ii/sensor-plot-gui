@@ -1,28 +1,29 @@
-from font_config import set_chinese_font
+<![CDATA[from font_config import set_chinese_font
 from gui import SensorPicker
-from utils import pick_file
+from utils import pick_file # 保留 pick_file，因為 gui.py 會用到
 import pandas as pd
-import customtkinter as ctk  # <--- 改這行
-from tkinter import messagebox  # messagebox 也可以繼續用
+import customtkinter as ctk
+from tkinter import messagebox
 import sys
 
 def main():
     set_chinese_font()
-    file_path = pick_file()
-    df = pd.read_csv(file_path)
-    if 'Timestamp' in df.columns:
-        df['Timestamp'] = pd.to_datetime(df['Timestamp'], unit='s', errors='coerce', utc=True)
-        df['Timestamp'] = df['Timestamp'].dt.tz_convert('Asia/Taipei')
-        df = df.sort_values('Timestamp')
-        time_col = 'Timestamp'
-    elif 'Date' in df.columns and 'Time' in df.columns:
-        df['Datetime'] = pd.to_datetime(df['Date'] + ' ' + df['Time'], errors='coerce')
-        df['Datetime'] = df['Datetime'].dt.tz_localize('Asia/Taipei')
-        df = df.sort_values('Datetime')
-        time_col = 'Datetime'
-    else:
-        raise Exception("CSV 沒有 Timestamp 或 Date/Time 欄")
-    app = SensorPicker(df, time_col)  # SensorPicker 內部要改成 ctk 版本
+    # 移除檔案選擇和讀取 CSV 的部分
+    # file_path = pick_file()
+    # df = pd.read_csv(file_path)
+    # if 'Timestamp' in df.columns:
+    #     df['Timestamp'] = pd.to_datetime(df['Timestamp'], unit='s', errors='coerce', utc=True)
+    #     df['Timestamp'] = df['Timestamp'].dt.tz_convert('Asia/Taipei')
+    #     df = df.sort_values('Timestamp')
+    #     time_col = 'Timestamp'
+    # elif 'Date' in df.columns and 'Time' in df.columns:
+    #     df['Datetime'] = pd.to_datetime(df['Date'] + ' ' + df['Time'], errors='coerce')
+    #     df['Datetime'] = df['Datetime'].dt.tz_localize('Asia/Taipei')
+    #     df = df.sort_values('Datetime')
+    #     time_col = 'Datetime'
+    # else:
+    #     raise Exception("CSV 沒有 Timestamp 或 Date/Time 欄")
+    app = SensorPicker() # 直接初始化 SensorPicker，不傳入 df 和 time_col
     app.mainloop()
 
 if __name__ == "__main__":
@@ -35,3 +36,4 @@ if __name__ == "__main__":
         root.withdraw()
         messagebox.showerror("執行時錯誤", str(e))
         sys.exit(1)
+]]>
