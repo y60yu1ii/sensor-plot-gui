@@ -59,43 +59,40 @@ def state_color(state):
         state = str(state)
     state = state.strip().lstrip("'").lstrip('"').rstrip("'").rstrip('"')
     
-    # 短二進制（常見的兩位）
     if state in ['00', '01', '10', '11']:
         mapping = {
             '00': '#e6e6e6',   # 灰白
             '01': '#b3ffd9',   # 淡綠
             '10': '#99cfff',   # 淡藍
-            '11': '#ffb3b3',   # 淡紅
+            '11': '#ff0000',   # 淡紅
         }
         return mapping[state]
     
-    # 四位二進制
     if len(state) == 4 and all(c in '01' for c in state):
         if state.startswith('0'):
-            # 淡色系
             mapping = {
-                '0000': '#f2f2f2',   # 很淡灰
-                '0001': '#d1ffd6',   # 淡綠
-                '0010': '#cbe6ff',   # 淡藍
-                '0011': '#ffecc2',   # 淡黃
-                '0100': '#bff2fa',   # 超淡藍
-                '0101': '#c4f9cb',   # 超淡綠
-                '0110': '#d6d8ff',   # 淡紫
-                '0111': '#fffacc',   # 很淡黃
+                '0000': '#f2f2f2',
+                '0001': '#d1ffd6',
+                '0010': '#cbe6ff', 
+                '0011': '#ffecc2',   
+                '0100': '#bff2fa',   
+                '0101': '#c4f9cb',   
+                '0110': '#d6d8ff',   
+                '0111': '#fffacc',   
             }
-            return mapping.get(state, '#d4edfa')  # 預設很淡藍
+            return mapping.get(state, '#d4edfa')
         elif state.startswith('1'):
             # 深色系
             mapping = {
                 '1000': '#4fd0e9',   # 藍綠深
                 '1001': '#44d18d',   # 深綠
-                '1010': '#0092ff',   # 深藍
-                '1011': '#ffcf3b',   # 橙
-                '1100': '#f97c7c',   # 深紅
-                '1101': '#bf3eff',   # 深紫
-                '1110': '#fa2c5a',   # 深粉紅
-                '1111': '#ff8600',   # 深橘
+                '1010': '#ffecc2',   # 深藍
+                '1011': '#ffecc2',   # 橙
+                '1100': '#ffb3b3',   # 深紅
+                '1101': '#ff0000',   # 深紫
+                '1110': '#ffecc2',   # 深粉紅
+                '1111': '#ffecc2',   # 深橘
             }
-            return mapping.get(state, '#6ec6ff')  # 預設深藍
+            return mapping.get(state, '#d4edfa')  # 預設深藍
     # 其他（fallback）
     return '#f6ffed'
