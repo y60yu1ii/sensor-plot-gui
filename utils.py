@@ -93,7 +93,7 @@ def state_color(state):
             return mapping.get(state, '#d4edfa')
         elif state.startswith('1'):
             mapping = {
-                '1000': '#4fd0e9',
+                '1000': '#f2f2f2',
                 '1001': '#44d18d',
                 '1010': '#ffecc2',
                 '1011': '#ffecc2',
