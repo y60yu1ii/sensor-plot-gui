@@ -7,7 +7,12 @@ import customtkinter as ctk
 from tkinter import ttk, filedialog, messagebox
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from utils import (
-    pick_datetime_with_default, get_switchable_cols, get_sensor_cols, state_color
+    pick_datetime_with_default,
+    get_switchable_cols,
+    get_av_cols,
+    get_sensor_cols,
+    state_color,
+    av_upscale,
 )
 import datetime
 
@@ -79,10 +84,12 @@ class SensorPicker(ctk.CTk):
         scrollbar.pack(side="right", fill="y")
 
         # 感測器/狀態元件管理
-        self.switch_all = get_switchable_cols(df)
-        self.sensor_all = get_sensor_cols(df)
+        self.switch_all = get_switchable_cols(df)   # p-, b-, mx-
+        self.av_all = get_av_cols(df)               # av-
+        self.sensor_all = get_sensor_cols(df)       # 其他感測
         self.vars_main = {}
         self.vars_aux = {}
+        self.vars_av = {}
         self.status_radio_var = ctk.StringVar()
         self.refresh_panel()
 
@@ -115,7 +122,7 @@ class SensorPicker(ctk.CTk):
         search_key = self.search_var.get().strip().lower()
         for widget in self.scrollable_frame.winfo_children():
             widget.destroy()
-        ctk.CTkLabel(self.scrollable_frame, text="狀態開關 (單選)", text_color='purple').pack(anchor='w')
+        ctk.CTkLabel(self.scrollable_frame, text="狀態開關 (單選，背景色)", text_color='purple').pack(anchor='w')
         for col in self.switch_all:
             if not search_key or search_key in col.lower():
                 rb = ctk.CTkRadioButton(self.scrollable_frame, text=col, variable=self.status_radio_var, value=col, command=self.set_status)
@@ -133,6 +140,13 @@ class SensorPicker(ctk.CTk):
                 if sensor not in self.vars_aux:
                     self.vars_aux[sensor] = ctk.BooleanVar()
                 chk = ctk.CTkCheckBox(self.scrollable_frame, text=sensor, variable=self.vars_aux[sensor], command=self.update_plot)
+                chk.pack(anchor='w')
+        ctk.CTkLabel(self.scrollable_frame, text="AV 狀態 (多選, upscale)", text_color='orange').pack(anchor='w', pady=(10,0))
+        for av_col in self.av_all:
+            if not search_key or search_key in av_col.lower():
+                if av_col not in self.vars_av:
+                    self.vars_av[av_col] = ctk.BooleanVar()
+                chk = ctk.CTkCheckBox(self.scrollable_frame, text=av_col, variable=self.vars_av[av_col], command=self.update_plot)
                 chk.pack(anchor='w')
         self.update_status_label()
 
@@ -248,7 +262,8 @@ class SensorPicker(ctk.CTk):
         df = self.df_all.loc[mask]
         main_sensors = [s for s in self.sensor_all if self.vars_main.get(s, ctk.BooleanVar()).get()]
         aux_sensors = [s for s in self.sensor_all if self.vars_aux.get(s, ctk.BooleanVar()).get()]
-        sensors = sorted(set(main_sensors + aux_sensors))
+        av_cols = [col for col in self.av_all if self.vars_av.get(col, ctk.BooleanVar()).get()]
+        sensors = sorted(set(main_sensors + aux_sensors + av_cols))
         switch_col = self.selected_status_var.get()
         cols = [self.time_col] + sensors
         if switch_col and switch_col not in cols:
@@ -318,6 +333,7 @@ class SensorPicker(ctk.CTk):
         df = self.df_all.loc[mask]
         main_sensors = [s for s in self.sensor_all if self.vars_main.get(s, ctk.BooleanVar()).get()]
         aux_sensors = [s for s in self.sensor_all if self.vars_aux.get(s, ctk.BooleanVar()).get()]
+        av_cols = [col for col in self.av_all if self.vars_av.get(col, ctk.BooleanVar()).get()]
 
         handles = []
         switch_col = self.selected_status_var.get()
@@ -356,7 +372,7 @@ class SensorPicker(ctk.CTk):
                         y_scaled = ycenter + aux_diff * yquarter / np.nanmax(np.abs(aux_diff))
                     else:
                         y_scaled = np.full_like(y_orig, ycenter)
-                    line, = self.ax.plot(df[self.time_col], y_scaled, 
+                    line, = self.ax.plot(df[self.time_col], y_scaled,
                         label=f"{sensor} (副軸標準化)", linestyle="--")
                     handles.append(line)
         else:
@@ -367,11 +383,40 @@ class SensorPicker(ctk.CTk):
             self.canvas_plot.draw()
             return
 
+        if av_cols and not df.empty and ymain_all.size > 0:
+            main_min, main_max = np.nanmin(ymain_all), np.nanmax(ymain_all)
+            av_zone_height = (main_max - main_min) / (len(av_cols) + 1 + 1e-6)
+            av_colors = ['#fc8d62', '#66c2a5', '#8da0cb', '#e78ac3', '#a6d854', '#ffd92f', '#e5c494', '#b3b3b3']
+            for idx, av_col in enumerate(av_cols):
+                upscale_vals = df[av_col].apply(av_upscale).values
+                zone_base = main_min + idx * av_zone_height
+                zero_base = zone_base + av_zone_height * 0.3  # 這就是0的位置
+                scaled_vals = np.where(
+                    upscale_vals == 1, zone_base + av_zone_height*0.8,
+                    np.where(upscale_vals == 0, zero_base, zone_base)
+                )
+            # 畫 av- 的主線
+            self.ax.plot(
+                df[self.time_col], scaled_vals,
+                label=f"{av_col} (upscale)", color=av_colors[idx % len(av_colors)],
+                linewidth=2, drawstyle='steps-post'
+            )
+            # 畫0的基準線（虛線，跟主線同色/同label加“0基準”字樣，或label不重複顯示）
+            self.ax.axhline(
+                zero_base,
+                xmin=0, xmax=1,
+                color=av_colors[idx % len(av_colors)],
+                linestyle="dashed",
+                linewidth=1,
+                alpha=0.6,
+                label=f"{av_col} 0基準"
+            )
         if df.empty:
             self.ax.set_title('此時間段沒有資料')
+
         self.ax.set_xlabel('時間')
         self.ax.set_ylabel('數值')
-        self.ax.legend(handles=handles, loc='upper left', fontsize=8)
+        self.ax.legend(loc='upper left', fontsize=8)
         self.ax.relim()
         self.ax.autoscale_view()
         self.fig.tight_layout()
