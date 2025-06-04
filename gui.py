@@ -30,7 +30,8 @@ class SensorPicker(ctk.CTk):
         self.time_max = None
         self.start_time = ctk.StringVar()
         self.end_time = ctk.StringVar()
-
+        self._search_after_id = None # 用於延遲搜尋刷新
+ 
         main_frame = ctk.CTkFrame(self)
         main_frame.pack(fill=ctk.BOTH, expand=1)
 
@@ -223,8 +224,15 @@ class SensorPicker(ctk.CTk):
             # 使用者取消選擇，不做任何事
 
     def refresh_panel_if_data_loaded(self, *args):
+        if self._search_after_id:
+            self.after_cancel(self._search_after_id) # 取消之前的延遲任務
+        
+        # 延遲 300ms 後執行刷新
+        self._search_after_id = self.after(300, self._do_refresh_panel)
+
+    def _do_refresh_panel(self):
         if self.df_all is not None:
-            self.refresh_panel(*args)
+            self.refresh_panel()
             
     def update_plot_if_data_loaded(self):
         if self.df_all is not None:
@@ -245,10 +253,10 @@ class SensorPicker(ctk.CTk):
                 frm = ctk.CTkFrame(self.scrollable_frame, fg_color="transparent")
                 frm.pack(anchor='w', fill=ctk.X, padx=5, pady=1)
                 checked = "✅"
-                btn_check = ctk.CTkButton(frm, text=checked, width=30, height=30, command=lambda c=col: self.toggle_checked(c), corner_radius=6, fg_color="transparent", hover_color="#DCE4EE", text_color_disabled="grey")
+                btn_check = ctk.CTkButton(frm, text=checked, width=30, height=30, command=lambda c=col: self.toggle_checked(c), corner_radius=6, fg_color="transparent", hover_color="#DCE4EE", text_color_disabled="grey", text_color="black")
                 btn_check.pack(side=ctk.LEFT, padx=(0,3))
                 eye = "👁️" if self.is_visible.get(col, True) else "🙈"
-                btn_eye = ctk.CTkButton(frm, text=eye, width=30, height=30, command=lambda c=col: self.toggle_visible(c), corner_radius=6, fg_color="transparent", hover_color="#DCE4EE", text_color_disabled="grey")
+                btn_eye = ctk.CTkButton(frm, text=eye, width=30, height=30, command=lambda c=col: self.toggle_visible(c), corner_radius=6, fg_color="transparent", hover_color="#DCE4EE", text_color_disabled="grey", text_color="black")
                 btn_eye.pack(side=ctk.LEFT, padx=(0,5))
                 ctk.CTkLabel(frm, text=col).pack(side=ctk.LEFT, pady=2)
 
@@ -260,10 +268,10 @@ class SensorPicker(ctk.CTk):
                 frm = ctk.CTkFrame(self.scrollable_frame, fg_color="transparent")
                 frm.pack(anchor='w', fill=ctk.X, padx=5, pady=1)
                 checked = "✅" if self.vars_all[col].get() else "🔲"
-                btn_check = ctk.CTkButton(frm, text=checked, width=30, height=30, command=lambda c=col: self.toggle_checked(c), corner_radius=6, fg_color="transparent", hover_color="#DCE4EE", text_color_disabled="grey")
+                btn_check = ctk.CTkButton(frm, text=checked, width=30, height=30, command=lambda c=col: self.toggle_checked(c), corner_radius=6, fg_color="transparent", hover_color="#DCE4EE", text_color_disabled="grey", text_color="black")
                 btn_check.pack(side=ctk.LEFT, padx=(0,3))
                 eye = "👁️" if self.is_visible.get(col, True) else "🙈"
-                btn_eye = ctk.CTkButton(frm, text=eye, width=30, height=30, command=lambda c=col: self.toggle_visible(c), corner_radius=6, fg_color="transparent", hover_color="#DCE4EE", text_color_disabled="grey")
+                btn_eye = ctk.CTkButton(frm, text=eye, width=30, height=30, command=lambda c=col: self.toggle_visible(c), corner_radius=6, fg_color="transparent", hover_color="#DCE4EE", text_color_disabled="grey", text_color="black")
                 btn_eye.pack(side=ctk.LEFT, padx=(0,5))
                 ctk.CTkLabel(frm, text=col).pack(side=ctk.LEFT, pady=2)
 
