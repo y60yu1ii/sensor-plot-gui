@@ -8,6 +8,9 @@ import sys
 
 def main():
     set_chinese_font()
+    # 設定 CustomTkinter 預設字型
+    # ctk.set_default_font(("Heiti TC", 12)) # 移除錯誤的字體設定
+    # print("main.py: 嘗試設定 customtkinter 預設字體為 Heiti TC")
     # 移除檔案選擇和讀取 CSV 的部分
     # file_path = pick_file()
     # df = pd.read_csv(file_path)
