@@ -2,6 +2,28 @@ import tkinter as tk
 from tkinter import filedialog
 from tkcalendar import Calendar
 from datetime import datetime
+import json
+import os
+
+EQUIPMENT_NAMES = {}
+
+def load_equipment_names():
+    global EQUIPMENT_NAMES
+    script_dir = os.path.dirname(__file__)
+    json_path = os.path.join(script_dir, 'equipments.json')
+    try:
+        with open(json_path, 'r', encoding='utf-8') as f:
+            EQUIPMENT_NAMES = json.load(f)
+    except FileNotFoundError:
+        print(f"錯誤: 找不到 equipments.json 檔案於 {json_path}")
+    except json.JSONDecodeError:
+        print(f"錯誤: equipments.json 檔案格式不正確於 {json_path}")
+
+def get_equipment_chinese_name(tag):
+    return EQUIPMENT_NAMES.get(tag, tag)
+
+# 在模組載入時自動載入設備名稱
+load_equipment_names()
 
 def pick_file():
     root = tk.Tk()
@@ -48,6 +70,10 @@ def pick_datetime_with_default(title="選擇日期時間", default_dt=None):
 def get_switchable_cols(df):
     """只挑出需要背景色的欄位（p-, b-, mx-）"""
     return [col for col in df.columns if col.startswith(('p-', 'b-', 'mx-'))]
+
+def get_chinese_name_for_tag(tag):
+    """根據 equipments.json 取得對應的中文名稱，如果沒有則返回原始 tag"""
+    return get_equipment_chinese_name(tag)
 
 def get_av_cols(df):
     """只挑出 av- 欄位，之後專門做 upscale 用"""

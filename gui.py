@@ -14,6 +14,7 @@ from utils import (
     get_sensor_cols,
     state_color,
     av_upscale,
+    get_equipment_chinese_name # 新增導入
     # pick_file # utils.py 中已經有 pick_file, 但 gui.py 中直接用 filedialog.askopenfilename
 )
 import datetime
@@ -320,7 +321,8 @@ class SensorPicker(ctk.CTk):
                 eye_text = "👁️" if item_data['is_visible'] else "🙈"
                 btn_eye = ctk.CTkButton(frm, text=eye_text, width=30, height=30, command=lambda c=col: self.toggle_visible(c), corner_radius=6, fg_color="transparent", hover_color="#DCE4EE", text_color_disabled="grey", text_color="black", font=self.chinese_font)
                 btn_eye.pack(side=ctk.LEFT, padx=(0,5))
-                ctk.CTkLabel(frm, text=col, font=self.chinese_font).pack(side=ctk.LEFT, pady=2)
+                display_text = f"{get_equipment_chinese_name(col)} ({col})" # 顯示中文名稱和原始 tag
+                ctk.CTkLabel(frm, text=display_text, font=self.chinese_font).pack(side=ctk.LEFT, pady=2)
 
         ctk.CTkLabel(self.scrollable_frame, text="全部感測器 (點擊勾選/隱藏)", font=self.chinese_font_bold).pack(anchor='w', pady=(10,3), padx=5)
         for item_data in all_sensors_data:
@@ -335,7 +337,8 @@ class SensorPicker(ctk.CTk):
             eye_text = "👁️" if item_data['is_visible'] else "🙈"
             btn_eye = ctk.CTkButton(frm, text=eye_text, width=30, height=30, command=lambda c=col: self.toggle_visible(c), corner_radius=6, fg_color="transparent", hover_color="#DCE4EE", text_color_disabled="grey", text_color="black", font=self.chinese_font)
             btn_eye.pack(side=ctk.LEFT, padx=(0,5))
-            ctk.CTkLabel(frm, text=col, font=self.chinese_font).pack(side=ctk.LEFT, pady=2)
+            display_text = f"{get_equipment_chinese_name(col)} ({col})" # 顯示中文名稱和原始 tag
+            ctk.CTkLabel(frm, text=display_text, font=self.chinese_font).pack(side=ctk.LEFT, pady=2)
             
     def update_plot_if_data_loaded(self):
         if self.df_all is not None:
