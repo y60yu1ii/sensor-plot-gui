@@ -68,16 +68,12 @@ def pick_datetime_with_default(title="選擇日期時間", default_dt=None):
     return result.get('datetime')
 
 def get_switchable_cols(df):
-    """只挑出需要背景色的欄位（p-, b-, mx-）"""
-    return [col for col in df.columns if col.startswith(('p-', 'b-', 'mx-'))]
+    """只挑出需要背景色的欄位（p-, b-, mx-, av-）"""
+    return [col for col in df.columns if col.startswith(('p-', 'b-', 'mx-', 'av-'))]
 
 def get_chinese_name_for_tag(tag):
     """根據 equipments.json 取得對應的中文名稱，如果沒有則返回原始 tag"""
     return get_equipment_chinese_name(tag)
-
-def get_av_cols(df):
-    """只挑出 av- 欄位，之後專門做 upscale 用"""
-    return [col for col in df.columns if col.startswith('av-')]
 
 def get_sensor_cols(df):
     """其餘一般數值型感測欄位（排除 ID, Timestamp, Date, Time, Datetime, 以及 p-, b-, mx-, av-）"""
@@ -87,22 +83,31 @@ def get_sensor_cols(df):
         if not col.startswith(('p-', 'b-', 'mx-', 'av-')) and col not in skip
     ]
 
-def state_color(state):
+def state_color(state, col_name=""):
     """
-    只針對 p-, b-, mx- 類的狀態碼決定背景色
+    根據狀態碼和欄位名稱決定背景色
     """
     if not isinstance(state, str):
         state = str(state)
     state = state.strip().lstrip("'").lstrip('"').rstrip("'").rstrip('"')
 
+    # 針對 av- 系列的特殊顏色邏輯
+    if col_name.startswith('av-'):
+        if state == '11':
+            return '#ff0000'  # 紅色
+        elif state == '10':
+            return '#b3ffd9'  # 淡綠
+        elif state in ['01', '00']:
+            return '#ffffff'  # 白色
+            
     if state in ['00', '01', '10', '11']:
         mapping = {
             '00': '#e6e6e6',   # 灰白
             '01': '#b3ffd9',   # 淡綠
             '10': '#99cfff',   # 淡藍
-            '11': '#ff0000',   # 淡紅
+            '11': '#ffb3b3',   # 淡紅
         }
-        return mapping[state]
+        return mapping.get(state, '#f0f0f0') # 使用 .get 提供一個預設值
 
     if len(state) == 4 and all(c in '01' for c in state):
         if state.startswith('0'):

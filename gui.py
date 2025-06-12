@@ -10,7 +10,6 @@ import threading # <--- Added import
 from utils import (
     pick_datetime_with_default,
     get_switchable_cols,
-    get_av_cols,
     get_sensor_cols,
     state_color,
     av_upscale,
@@ -128,7 +127,8 @@ class SensorPicker(ctk.CTk):
         self.fig.canvas.mpl_connect("button_release_event", self.on_release)
         self.fig.canvas.mpl_connect("scroll_event", self.on_scroll)
 
-        self.load_initial_data()
+        # self.load_initial_data() # <-- 移除啟動時自動載入
+        self.update_plot() # <-- 新增，確保啟動時顯示初始圖表
 
     def _set_controls_state(self, state):
         """啟用或禁用相關控制項"""
@@ -182,9 +182,8 @@ class SensorPicker(ctk.CTk):
             self.end_time.set(str(self.time_max)[:19])
 
             self.switch_all = get_switchable_cols(self.df_all)
-            self.av_all = get_av_cols(self.df_all)
             self.sensor_all = get_sensor_cols(self.df_all)
-            self.all_cols = self.switch_all + self.sensor_all + self.av_all
+            self.all_cols = self.switch_all + self.sensor_all
             # self.vars_all = {} # Old line
             self.vars_all = {col: ctk.BooleanVar(value=False) for col in self.all_cols} # New: Initialize all
             self.is_visible = {col: True for col in self.all_cols}
@@ -200,25 +199,6 @@ class SensorPicker(ctk.CTk):
             self.ax.set_title('讀取檔案錯誤或無資料')
             self.canvas_plot.draw()
             return False
-
-    def load_initial_data(self):
-        file_path = filedialog.askopenfilename(
-            title="選擇 CSV 檔案",
-            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
-        )
-        if not file_path:
-            messagebox.showinfo("提示", "未選擇檔案，程式將關閉。")
-            self.destroy()
-            sys.exit() # 確保程式退出
-            return
-        
-        if not self.load_data_from_file(file_path):
-            # load_data_from_file 內部已處理錯誤訊息和UI狀態
-            # 如果初始載入失敗，也關閉程式
-            messagebox.showinfo("提示", "檔案載入失敗，程式將關閉。")
-            self.destroy()
-            sys.exit() # 確保程式退出
-
 
     def open_new_csv(self):
         file_path = filedialog.askopenfilename(
@@ -350,16 +330,16 @@ class SensorPicker(ctk.CTk):
     def toggle_visible(self, col):
         if self.df_all is None: return
         self.is_visible[col] = not self.is_visible.get(col, True)
-        self.refresh_panel_if_data_loaded() # <--- Changed
-        self.update_plot()
+        self.refresh_panel_if_data_loaded()
+        self.after(1, self.update_plot)
 
     def toggle_checked(self, col):
         if self.df_all is None: return
         v = self.vars_all.get(col, None)
         if v:
             v.set(not v.get())
-        self.refresh_panel_if_data_loaded() # <--- Changed
-        self.update_plot()
+        self.refresh_panel_if_data_loaded()
+        self.after(1, self.update_plot)
 
     def pick_start_time(self):
         if self.df_all is None: return
@@ -534,7 +514,7 @@ class SensorPicker(ctk.CTk):
     def update_plot(self):
         if self.df_all is None or self.time_col is None:
             self.ax.clear()
-            if self.ax2: 
+            if self.ax2:
                 if self.ax2.get_figure(): self.ax2.remove()
                 self.ax2 = None
             self.ax.set_title('請先載入 CSV 檔案')
@@ -551,9 +531,9 @@ class SensorPicker(ctk.CTk):
             start_str = self.start_time.get()
             end_str = self.end_time.get()
             if not start_str or not end_str:
-                 self.ax.set_title('時間範圍未設定')
-                 self.canvas_plot.draw()
-                 return
+                self.ax.set_title('時間範圍未設定')
+                self.canvas_plot.draw()
+                return
             start = pd.Timestamp(start_str)
             if start.tzinfo is None: start = start.tz_localize(tz)
             end = pd.Timestamp(end_str)
@@ -566,7 +546,7 @@ class SensorPicker(ctk.CTk):
 
         mask = (self.df_all[self.time_col] >= start) & (self.df_all[self.time_col] <= end)
         df = self.df_all.loc[mask]
-        
+
         if df.empty:
             self.ax.set_title('此時間範圍內無資料')
             self.fig.tight_layout()
@@ -576,11 +556,20 @@ class SensorPicker(ctk.CTk):
         selected_cols = [col for col, v in self.vars_all.items() if v.get() and self.is_visible.get(col, True)]
         switch_cols_selected = [col for col in selected_cols if col in self.switch_all]
         sensor_cols_selected = [col for col in selected_cols if col in self.sensor_all]
-        av_cols_selected = [col for col in selected_cols if col in self.av_all]
 
         patch_handles = []
-        # --- 繪製 switch_cols (背景色塊) ---
-        for col_name in switch_cols_selected: 
+        short_bar_ymin = 0.85
+        short_bar_height = 0.03
+        short_bar_gap = 0.01
+        short_bar_levels = []
+        short_bar_pos_map = {}
+        for col in switch_cols_selected:
+            if col.startswith("b-") or col.startswith("p-") or col.startswith("av-"):
+                y_base = short_bar_ymin - (len(short_bar_levels) * (short_bar_height + short_bar_gap))
+                short_bar_pos_map[col] = (y_base, y_base + short_bar_height)
+                short_bar_levels.append(col)
+
+        for col_name in switch_cols_selected:
             if col_name not in df.columns or df[col_name].empty: continue
             times = df[self.time_col].values
             vals = df[col_name].astype(str).values
@@ -590,29 +579,33 @@ class SensorPicker(ctk.CTk):
             for i in range(1, len(times)):
                 if vals[i] != seg_val or i == len(times)-1:
                     seg_end = times[i] if vals[i] != seg_val else times[i]+np.timedelta64(1,'s')
+                    y0, y1 = short_bar_pos_map.get(col_name, (0.0, 1.0))
                     self.ax.axvspan(pd.to_datetime(seg_start), pd.to_datetime(seg_end),
-                                    facecolor=state_color(seg_val), alpha=0.30)
-                    if i < len(times) -1 or vals[i] == seg_val :
-                         seg_start = times[i]
-                         seg_val = vals[i]
+                                    facecolor=state_color(seg_val, col_name), alpha=0.45,
+                                    ymin=y0, ymax=y1)
+                    if i < len(times) -1 or vals[i] == seg_val:
+                        seg_start = times[i]
+                        seg_val = vals[i]
                     elif i == len(times)-1 and vals[i] != seg_val:
-                         self.ax.axvspan(pd.to_datetime(times[i]), pd.to_datetime(times[i]+np.timedelta64(1,'s')),
-                                    facecolor=state_color(vals[i]), alpha=0.30)
-            unique_switch_vals = sorted(list(set(vals))) 
-            for state_val in unique_switch_vals: # Create legend patches for switch_cols
-                 patch_handles.append(mpatches.Patch(color=state_color(state_val), label=f"{col_name} = {state_val}"))
-
-        # --- 準備 sensor data 並分類 ---
+                        y0, y1 = short_bar_pos_map.get(col_name, (0.0, 1.0))
+                        self.ax.axvspan(pd.to_datetime(times[i]), pd.to_datetime(times[i]+np.timedelta64(1,'s')),
+                                        facecolor=state_color(vals[i], col_name), alpha=0.45,
+                                        ymin=y0, ymax=y1)
+            unique_switch_vals = sorted(list(set(vals)))
+            for state_val in unique_switch_vals:
+                patch_handles.append(mpatches.Patch(color=state_color(state_val), label=f"{col_name} = {state_val}"))
+    
+        # --- 準備 sensor data 並分類 (移出迴圈) ---
         valid_sensor_cols = [col for col in sensor_cols_selected if col in df.columns and not df[col].isnull().all()]
         ys_sensor_raw_map = {col: pd.to_numeric(df[col], errors='coerce').values for col in valid_sensor_cols}
         sensor_means_map = {col: np.nanmean(ys_sensor_raw_map[col]) if col in ys_sensor_raw_map and not np.all(np.isnan(ys_sensor_raw_map[col])) else np.nan for col in valid_sensor_cols}
         
         reference_cols_list = []
         scaled_cols_list = []
-
+    
         if valid_sensor_cols:
             sensor_ranges_map = {}
-            for col_name in valid_sensor_cols: 
+            for col_name in valid_sensor_cols:
                 y_raw = ys_sensor_raw_map[col_name]
                 if not np.all(np.isnan(y_raw)):
                     min_v, max_v = np.nanmin(y_raw), np.nanmax(y_raw)
@@ -623,52 +616,45 @@ class SensorPicker(ctk.CTk):
             if sensor_ranges_map:
                 positive_ranges = [r for r in sensor_ranges_map.values() if r > 1e-9]
                 min_overall_positive_range = min(positive_ranges) if positive_ranges else 0.0
-
-                for col_name in valid_sensor_cols: 
+    
+                for col_name in valid_sensor_cols:
                     current_range = sensor_ranges_map.get(col_name, 0.0)
                     if min_overall_positive_range == 0.0 or current_range <= min_overall_positive_range * self.RANGE_SIMILARITY_FACTOR:
                         reference_cols_list.append(col_name)
                     else:
                         scaled_cols_list.append(col_name)
-            else: 
+            else:
                 reference_cols_list = list(valid_sensor_cols)
         
         # --- Y 軸管理 ---
         ax1_has_data_lines = bool(reference_cols_list)
-        ax2_needs_creation = bool(scaled_cols_list or av_cols_selected)
-
+        ax2_needs_creation = bool(scaled_cols_list)
+    
         if ax2_needs_creation:
             self.ax2 = self.ax.twinx() # Create secondary axis
         
         # --- 繪製 reference_cols_list (主 Y 軸) ---
-        for col_name in reference_cols_list: 
+        for col_name in reference_cols_list:
             y_raw = ys_sensor_raw_map.get(col_name)
             if y_raw is not None and not np.all(np.isnan(y_raw)):
-                self.ax.plot(df[self.time_col], y_raw, label=f"{col_name} (μ: {sensor_means_map.get(col_name, np.nan):.2f})")
-
+                self.ax.plot(df[self.time_col], y_raw, label=f"{get_equipment_chinese_name(col_name)} (μ: {sensor_means_map.get(col_name, np.nan):.2f})")
+    
         # --- 繪製 scaled_cols_list (次 Y 軸) ---
         if self.ax2 and scaled_cols_list:
-            for col_name in scaled_cols_list: 
+            # 定義一組高對比度的顏色
+            colors = plt.cm.get_cmap('tab10').colors
+            for i, col_name in enumerate(scaled_cols_list):
                 y_raw = ys_sensor_raw_map.get(col_name)
                 mean_v = sensor_means_map.get(col_name, np.nan)
                 if y_raw is not None and not np.all(np.isnan(y_raw)):
                     min_v, max_v = np.nanmin(y_raw), np.nanmax(y_raw)
-                    if (max_v - min_v) > 1e-9: 
+                    color = colors[i % len(colors)] # 循環使用顏色
+                    if (max_v - min_v) > 1e-9:
                         y_scaled = (y_raw - min_v) / (max_v - min_v) # Scale to [0,1]
-                        self.ax2.plot(df[self.time_col], y_scaled, label=f"{col_name} (scaled, μ: {mean_v:.2f})", linestyle='--')
+                        self.ax2.plot(df[self.time_col], y_scaled, label=f"{get_equipment_chinese_name(col_name)} (scaled, μ: {mean_v:.2f})", color=color)
                     else: # Constant value, plot as 0.5 on scaled axis
-                        self.ax2.plot(df[self.time_col], np.full_like(y_raw, 0.5), label=f"{col_name} (scaled, μ: {mean_v:.2f})", linestyle='--')
+                        self.ax2.plot(df[self.time_col], np.full_like(y_raw, 0.5), label=f"{get_equipment_chinese_name(col_name)} (scaled, μ: {mean_v:.2f})", color=color)
         
-        # --- 繪製 av_cols_selected (次 Y 軸) ---
-        valid_av_cols = [col for col in av_cols_selected if col in df.columns and not df[col].isnull().all()]
-        if self.ax2 and valid_av_cols:
-            for col_name in valid_av_cols: 
-                y_av_raw = df[col_name].apply(av_upscale).values.astype(float) # Values are -1, 0, 1
-                mean_av = np.nanmean(y_av_raw)
-                y_av_scaled = (y_av_raw + 1) / 2.0 # Scale to [0, 0.5, 1]
-                if not np.all(np.isnan(y_av_scaled)):
-                    self.ax2.plot(df[self.time_col], y_av_scaled, label=f"{col_name} (av, μ: {mean_av:.2f})", linestyle=':')
-
         # --- 圖例 ---
         h1, l1 = self.ax.get_legend_handles_labels()
         h2, l2 = [], []
@@ -687,32 +673,31 @@ class SensorPicker(ctk.CTk):
                 unique_labels_map[label_text_item] = handle
                 final_handles.append(handle)
                 final_labels_text_ordered.append(label_text_item)
-
+    
         if final_handles:
              self.ax.legend(final_handles, final_labels_text_ordered, loc='upper left', fontsize=9, ncol=1)
         
         # --- Y 軸標籤 ---
         self.ax.set_ylabel("絕對數值 (基準組)" if ax1_has_data_lines else "數值") # Set primary Y-axis label
-        if self.ax2 and (scaled_cols_list or valid_av_cols): # Only set label and make visible if ax2 has data
-            self.ax2.set_ylabel("正規化數值 (其他組/AV)")
+        if self.ax2 and scaled_cols_list: # Only set label and make visible if ax2 has data
+            self.ax2.set_ylabel("正規化數值 (其他組)")
             self.ax2.set_visible(True)
         elif self.ax2: # ax2 exists but has no data, make it invisible
              self.ax2.set_visible(False)
-
-
+    
+    
         # --- 圖表標題 ---
-        if not (switch_cols_selected or valid_sensor_cols or valid_av_cols):
+        if not (switch_cols_selected or valid_sensor_cols):
             self.ax.set_title('請至少勾選一個感測器')
         # df.empty case is handled at the beginning, no need to set title here for it
         
         # --- Final adjustments ---
         self.ax.set_xlabel('時間')
-        self.ax.relim() # Recalculate limits for primary axis
-        self.ax.autoscale_view(tight=True) # Autoscale primary axis
-        
-        if self.ax2 and self.ax2.get_visible(): # Autoscale ax2 only if it's visible and has data
+        self.ax.relim()
+        self.ax.autoscale_view(tight=True)
+        if self.ax2 and self.ax2.get_visible():
             self.ax2.relim()
             self.ax2.autoscale_view(tight=True)
-
-        self.fig.tight_layout() # Adjust layout to prevent overlap
+        self.fig.tight_layout()
         self.canvas_plot.draw()
+
