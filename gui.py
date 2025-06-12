@@ -18,6 +18,8 @@ from utils import (
 )
 import datetime
 import sys # 用於關閉程式
+import json
+import os
 
 class SensorPicker(ctk.CTk):
     def __init__(self):
@@ -39,6 +41,7 @@ class SensorPicker(ctk.CTk):
         self._search_after_id = None # 用於延遲搜尋刷新
         self.ax2 = None # 次要 Y 軸
         self.RANGE_SIMILARITY_FACTOR = 2.5 # 用於判斷範圍是否相近的因子
+        self.config_file = "config.json"
 
         main_frame = ctk.CTkFrame(self)
         main_frame.pack(fill=ctk.BOTH, expand=1)
@@ -127,8 +130,49 @@ class SensorPicker(ctk.CTk):
         self.fig.canvas.mpl_connect("button_release_event", self.on_release)
         self.fig.canvas.mpl_connect("scroll_event", self.on_scroll)
 
-        # self.load_initial_data() # <-- 移除啟動時自動載入
-        self.update_plot() # <-- 新增，確保啟動時顯示初始圖表
+        self.load_config_and_data()
+        self.protocol("WM_DELETE_WINDOW", self.on_closing)
+
+    def on_closing(self):
+        self.save_config()
+        self.destroy()
+
+    def load_config_and_data(self):
+        if os.path.exists(self.config_file):
+            try:
+                with open(self.config_file, 'r') as f:
+                    config = json.load(f)
+                
+                last_path = config.get("last_csv_path")
+                last_cols = config.get("last_selected_cols", [])
+
+                if last_path and os.path.exists(last_path):
+                    if self.load_data_from_file(last_path):
+                        for col in last_cols:
+                            if col in self.vars_all:
+                                self.vars_all[col].set(True)
+                        self.refresh_panel_if_data_loaded()
+                        self.update_plot()
+                        return
+            except (json.JSONDecodeError, KeyError):
+                 # Config is corrupted, proceed with a blank state
+                 pass
+        # If anything fails, start with a blank state
+        self.update_plot()
+
+    def save_config(self):
+        if self.df_all is not None and hasattr(self, 'current_file_path'):
+            selected_cols = [col for col, var in self.vars_all.items() if var.get()]
+            config = {
+                "last_csv_path": self.current_file_path,
+                "last_selected_cols": selected_cols
+            }
+            with open(self.config_file, 'w') as f:
+                json.dump(config, f, indent=4)
+        else:
+            # If no data is loaded, clear the config
+            with open(self.config_file, 'w') as f:
+                json.dump({"last_csv_path": "", "last_selected_cols": []}, f, indent=4)
 
     def _set_controls_state(self, state):
         """啟用或禁用相關控制項"""
@@ -174,6 +218,7 @@ class SensorPicker(ctk.CTk):
                 messagebox.showerror("錯誤", "CSV 沒有 Timestamp 或 Date/Time 欄")
                 return False
 
+            self.current_file_path = file_path # Store current file path
             self.df_all = df.copy()
             self.time_col = time_col
             self.time_min = pd.Timestamp(df[time_col].min())
@@ -600,31 +645,48 @@ class SensorPicker(ctk.CTk):
         ys_sensor_raw_map = {col: pd.to_numeric(df[col], errors='coerce').values for col in valid_sensor_cols}
         sensor_means_map = {col: np.nanmean(ys_sensor_raw_map[col]) if col in ys_sensor_raw_map and not np.all(np.isnan(ys_sensor_raw_map[col])) else np.nan for col in valid_sensor_cols}
         
+        # 按 sensor 類型分組
+        sensor_groups = {}
+        for col in valid_sensor_cols:
+            prefix = col.split('-')[0]
+            if prefix not in sensor_groups:
+                sensor_groups[prefix] = []
+            sensor_groups[prefix].append(col)
+    
+        # 計算每個組的 min/max/range
+        group_stats = {}
+        for prefix, cols in sensor_groups.items():
+            min_vals, max_vals = [], []
+            for col in cols:
+                y_raw = ys_sensor_raw_map[col]
+                if not np.all(np.isnan(y_raw)):
+                    min_vals.append(np.nanmin(y_raw))
+                    max_vals.append(np.nanmax(y_raw))
+            if min_vals and max_vals:
+                group_min = min(min_vals)
+                group_max = max(max_vals)
+                group_stats[prefix] = {'min': group_min, 'max': group_max, 'range': group_max - group_min}
+    
         reference_cols_list = []
         scaled_cols_list = []
-    
-        if valid_sensor_cols:
-            sensor_ranges_map = {}
-            for col_name in valid_sensor_cols:
-                y_raw = ys_sensor_raw_map[col_name]
-                if not np.all(np.isnan(y_raw)):
-                    min_v, max_v = np.nanmin(y_raw), np.nanmax(y_raw)
-                    sensor_ranges_map[col_name] = max_v - min_v if (max_v - min_v) > 1e-9 else 0.0
-                else:
-                    sensor_ranges_map[col_name] = 0.0
+        
+        if group_stats:
+            # 選擇第一個有範圍的組作為參考基準
+            reference_prefix = next((p for p, s in group_stats.items() if s['range'] > 1e-9), None)
             
-            if sensor_ranges_map:
-                positive_ranges = [r for r in sensor_ranges_map.values() if r > 1e-9]
-                min_overall_positive_range = min(positive_ranges) if positive_ranges else 0.0
+            if reference_prefix is None: # 如果所有組都沒有範圍 (都是常數)
+                reference_prefix = next(iter(group_stats)) # 就選第一個
     
-                for col_name in valid_sensor_cols:
-                    current_range = sensor_ranges_map.get(col_name, 0.0)
-                    if min_overall_positive_range == 0.0 or current_range <= min_overall_positive_range * self.RANGE_SIMILARITY_FACTOR:
-                        reference_cols_list.append(col_name)
-                    else:
-                        scaled_cols_list.append(col_name)
-            else:
-                reference_cols_list = list(valid_sensor_cols)
+            reference_range = group_stats[reference_prefix]['range']
+            
+            for prefix, cols in sensor_groups.items():
+                current_range = group_stats.get(prefix, {}).get('range', 0.0)
+                # 如果沒有參考範圍，或當前範圍與參考範圍相似，或就是參考組本身，則畫在主軸
+                if reference_range < 1e-9 or current_range <= reference_range * self.RANGE_SIMILARITY_FACTOR or prefix == reference_prefix:
+                    reference_cols_list.extend(cols)
+                else:
+                    scaled_cols_list.extend(cols)
+        
         
         # --- Y 軸管理 ---
         ax1_has_data_lines = bool(reference_cols_list)
